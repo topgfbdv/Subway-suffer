@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Metro Dash 3D – Endless Runner</title>
+<meta name="description" content="Premium 3D endless subway runner with live day & night cycle, missions, power-ups and daily rewards." />
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet" />
+<style>
+  :root { --gold:#ffd23f; --pink:#ff4f8b; --cyan:#2ee6ff; --ink:#1b1035; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'Nunito',sans-serif; color:#fff; touch-action:none; }
+  #game { position:fixed; inset:0; }
+  .hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between; padding:14px 16px; pointer-events:none; z-index:5; }
+  .pill { background:rgba(20,10,45,.55); backdrop-filter:blur(8px); border:2px solid rgba(255,255,255,.18); border-radius:999px; padding:6px 14px; font-family:'Lilita One'; font-size:20px; display:flex; gap:8px; align-items:center; box-shadow:0 4px 18px rgba(0,0,0,.35); }
+  .pill .ic { width:20px; height:20px; border-radius:50%; background:radial-gradient(circle at 35% 35%,#fff7b0,var(--gold) 55%,#c98a00); box-shadow:0 0 10px var(--gold); }
+  .col { display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+  #mult { color:var(--cyan); font-size:16px; }
+  #clock { font-size:14px; }
+  #powers { position:fixed; left:16px; top:70px; display:flex; flex-direction:column; gap:6px; z-index:5; pointer-events:none; }
+  .pw { font-family:'Lilita One'; font-size:14px; padding:4px 10px; border-radius:10px; background:rgba(0,0,0,.45); border-left:4px solid var(--cyan); }
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:10; background:radial-gradient(ellipse at center,rgba(40,10,80,.55),rgba(5,0,20,.9)); text-align:center; padding:24px; transition:opacity .35s; }
+  .hidden { opacity:0; pointer-events:none; }
+  .logo { font-family:'Lilita One'; font-size:clamp(48px,12vw,96px); line-height:.9; background:linear-gradient(180deg,#fff 0%,var(--gold) 45%,#ff8a00 100%); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 6px 0 var(--ink)) drop-shadow(0 0 24px rgba(255,180,0,.5)); transform:rotate(-4deg); animation:bob 2.4s ease-in-out infinite; }
+  .logo small { display:block; font-size:.42em; background:linear-gradient(90deg,var(--cyan),var(--pink)); -webkit-background-clip:text; background-clip:text; }
+  @keyframes bob { 50% { transform:rotate(-2deg) translateY(-8px); } }
+  .btn { font-family:'Lilita One'; font-size:28px; color:var(--ink); border:none; border-radius:18px; padding:14px 44px; background:linear-gradient(180deg,#fff27a,var(--gold) 50%,#ff9d00); box-shadow:0 6px 0 #b35c00,0 10px 30px rgba(255,170,0,.45); cursor:pointer; animation:pulse 1.4s infinite; }
+  .btn:active { transform:translateY(4px); box-shadow:0 2px 0 #b35c00; }
+  .btn.alt { font-size:18px; padding:10px 22px; background:linear-gradient(180deg,#9ff7ff,var(--cyan)); box-shadow:0 5px 0 #0a7f99; animation:none; }
+  @keyframes pulse { 50% { transform:scale(1.05); } }
+  .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .card { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); border-radius:16px; padding:12px 16px; min-width:260px; max-width:360px; }
+  .card h3 { font-family:'Lilita One'; font-weight:400; color:var(--gold); margin-bottom:6px; letter-spacing:.5px; }
+  .mission { display:flex; justify-content:space-between; font-size:14px; padding:3px 0; gap:10px; }
+  .mission.done { color:#7dff9a; text-decoration:line-through; }
+  .big { font-family:'Lilita One'; font-size:56px; color:var(--gold); text-shadow:0 4px 0 var(--ink); }
+  .muted { opacity:.75; font-size:14px; }
+  #toast { position:fixed; top:40%; left:50%; transform:translate(-50%,-50%) scale(.6); font-family:'Lilita One'; font-size:34px; color:var(--gold); text-shadow:0 4px 0 var(--ink),0 0 20px rgba(255,200,0,.6); opacity:0; transition:all .3s; z-index:8; pointer-events:none; white-space:nowrap; }
+  #toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  #pauseBtn { position:fixed; bottom:18px; right:16px; z-index:6; width:46px; height:46px; border-radius:50%; border:2px solid rgba(255,255,255,.3); background:rgba(0,0,0,.4); color:#fff; font-size:18px; display:none; }
+  #help { position:fixed; bottom:20px; left:0; right:0; text-align:center; font-size:13px; opacity:.7; z-index:6; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div class="hud" id="hud" style="display:none">
+  <div class="col" style="align-items:flex-start">
+    <div class="pill"><span class="ic"></span><span id="coins">0</span></div>
+    <div class="pill" id="clock">☀ 12:00</div>
+  </div>
+  <div class="col">
+    <div class="pill" id="score">0</div>
+    <div class="pill" id="mult">x1</div>
+  </div>
+</div>
+<div id="powers"></div>
+<div id="toast"></div>
+<button id="pauseBtn">❚❚</button>
+
+<div class="screen" id="menu">
+  <div class="logo">METRO DASH<small>3D • 24/7 WORLD</small></div>
+  <div class="card">
+    <h3>🏆 Best: <span id="best">0</span> &nbsp; 💰 <span id="bank">0</span></h3>
+    <div class="muted" id="streak"></div>
+  </div>
+  <div class="card"><h3>🎯 Today's Missions</h3><div id="missions"></div></div>
+  <button class="btn" id="play">PLAY</button>
+  <div class="row">
+    <button class="btn alt" id="daily">🎁 Daily Reward</button>
+    <button class="btn alt" id="sound">🔊 Sound On</button>
+  </div>
+  <div class="muted">Swipe / Arrow keys • ← → lane • ↑ jump • ↓ roll</div>
+</div>
+
+<div class="screen hidden" id="over">
+  <div class="logo" style="font-size:54px">CAUGHT!</div>
+  <div class="big" id="final">0</div>
+  <div class="card">
+    <div class="mission"><span>Coins</span><b id="fcoins">0</b></div>
+    <div class="mission"><span>Distance</span><b id="fdist">0 m</b></div>
+    <div class="mission"><span>Best</span><b id="fbest">0</b></div>
+  </div>
+  <div class="card"><h3>🎯 Missions</h3><div id="missions2"></div></div>
+  <div class="row">
+    <button class="btn" id="again">RUN AGAIN</button>
+  </div>
+  <button class="btn alt" id="home">🏠 Menu</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
